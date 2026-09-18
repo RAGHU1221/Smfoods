@@ -12,69 +12,145 @@ permissions:
 
 jobs:
   build-apk:
-    name: Build Android APK
+    name: Android APK Build
     runs-on: ubuntu-latest
 
     steps:
+
+      # ---------------------------------------
       # 1. Checkout
+      # ---------------------------------------
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # 2. Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # ---------------------------------------
+      # 2. Node.js 24
+      # ---------------------------------------
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
-          cache: npm
+          node-version: 24
 
-      # 3. Java
+      # ---------------------------------------
+      # 3. Java 17
+      # ---------------------------------------
       - name: Setup Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      # 4. Install npm dependencies
-      # IMPORTANT:
-      # npm ci removed because package-lock.json
-      # is currently not synchronized with package.json.
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      # 5. Make sure Capacitor packages exist
-      - name: Install Capacitor
+      # ---------------------------------------
+      # 4. Check project
+      # ---------------------------------------
+      - name: Check project files
+        shell: bash
         run: |
-          npm install @capacitor/core@7.6.9 @capacitor/cli@7.6.9 --save
+          echo "Node:"
+          node --version
 
-      # 6. Build web application
+          echo "NPM:"
+          npm --version
+
+          echo "Project:"
+          ls -la
+
+          echo "Package:"
+          test -f package.json && echo "package.json OK"
+
+      # ---------------------------------------
+      # 5. Install dependencies
+      # ---------------------------------------
+      - name: Install npm dependencies
+        run: |
+          npm install --no-audit --no-fund
+
+      # ---------------------------------------
+      # 6. Install Capacitor
+      # ---------------------------------------
+      - name: Install Capacitor Android
+        run: |
+          npm install \
+            @capacitor/core@7.6.9 \
+            @capacitor/cli@7.6.9 \
+            @capacitor/android@7.6.9 \
+            --save
+
+      # ---------------------------------------
+      # 7. Build web application
+      # ---------------------------------------
       - name: Build web application
-        run: npm run build
-
-      # 7. Create Android project if it does not exist
-      - name: Add Android platform
         run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
+          npm run build
+
+      # ---------------------------------------
+      # 8. Create Android project
+      # ---------------------------------------
+      - name: Setup Android platform
+        shell: bash
+        run: |
+          if [ -d "android" ]; then
+            echo "Android folder already exists."
           else
-            echo "Android platform already exists"
+            echo "Android folder not found."
+            echo "Creating Android platform..."
+            npx cap add android
           fi
 
-      # 8. Sync web files to Android
+      # ---------------------------------------
+      # 9. Capacitor sync
+      # ---------------------------------------
       - name: Capacitor sync
-        run: npx cap sync android
+        run: |
+          npx cap sync android
 
-      # 9. Give Gradle permission
+      # ---------------------------------------
+      # 10. Check Gradle
+      # ---------------------------------------
+      - name: Check Android project
+        shell: bash
+        run: |
+          test -d android
+          test -f android/gradlew
+          test -f android/gradle/wrapper/gradle-wrapper.properties
+
+          echo "Android project OK"
+          ls -la android
+
+      # ---------------------------------------
+      # 11. Make Gradle executable
+      # ---------------------------------------
       - name: Make Gradle executable
         working-directory: android
         run: chmod +x gradlew
 
-      # 10. Build Debug APK
+      # ---------------------------------------
+      # 12. Build Debug APK
+      # ---------------------------------------
       - name: Build Debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      # 11. Upload APK
+      # ---------------------------------------
+      # 13. Verify APK
+      # ---------------------------------------
+      - name: Verify APK
+        shell: bash
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "ERROR: APK was not generated."
+            exit 1
+          fi
+
+          echo "APK generated successfully:"
+          ls -lh "$APK"
+
+      # ---------------------------------------
+      # 14. Upload APK
+      # ---------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
