@@ -1,21 +1,315 @@
-- name: Prepare Capacitor config
-  run: |
-    rm -f capacitor.config.ts
-    rm -f capacitor.config.js
+name: Build Sri Murugan Foods APK
 
-    cat > capacitor.config.cjs <<'EOF'
-    const config = {
-      appId: 'com.srimuruganfoods.pos',
-      appName: 'Sri Murugan Foods POS',
-      webDir: 'dist',
-      bundledWebRuntime: false,
-      android: {
-        backgroundColor: '#b91c1c'
-      }
-    };
+on:
+  workflow_dispatch:
 
-    module.exports = config;
-    EOF
+  push:
+    branches:
+      - main
+      - master
 
-    echo "Capacitor config:"
-    cat capacitor.config.cjs
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # --------------------------------------------------
+      # 1. Checkout source code
+      # --------------------------------------------------
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+
+      # --------------------------------------------------
+      # 2. Setup Node.js
+      # --------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+
+      # --------------------------------------------------
+      # 3. Setup Java
+      # --------------------------------------------------
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+
+      # --------------------------------------------------
+      # 4. Check environment
+      # --------------------------------------------------
+      - name: Check environment
+        run: |
+          echo "Node:"
+          node --version
+
+          echo "NPM:"
+          npm --version
+
+          echo "Java:"
+          java -version
+
+
+      # --------------------------------------------------
+      # 5. Install project dependencies
+      # --------------------------------------------------
+      - name: Install dependencies
+        run: |
+          npm install --no-audit --no-fund
+
+
+      # --------------------------------------------------
+      # 6. Install Capacitor packages
+      # --------------------------------------------------
+      - name: Install Capacitor
+        run: |
+          npm install \
+            @capacitor/core@7.6.9 \
+            @capacitor/cli@7.6.9 \
+            @capacitor/android@7.6.9 \
+            --save \
+            --no-audit \
+            --no-fund
+
+
+      # --------------------------------------------------
+      # 7. Remove incompatible Capacitor config files
+      # --------------------------------------------------
+      - name: Remove old Capacitor config
+        run: |
+          rm -f capacitor.config.ts
+          rm -f capacitor.config.js
+
+          echo "Old Capacitor config files removed."
+
+
+      # --------------------------------------------------
+      # 8. Create CommonJS Capacitor config
+      # --------------------------------------------------
+      - name: Create Capacitor config
+        run: |
+          cat > capacitor.config.cjs <<'EOF'
+          const config = {
+            appId: 'com.srimuruganfoods.pos',
+            appName: 'Sri Murugan Foods POS',
+            webDir: 'dist',
+            bundledWebRuntime: false,
+            android: {
+              backgroundColor: '#b91c1c'
+            }
+          };
+
+          module.exports = config;
+          EOF
+
+          echo "======================================"
+          echo "Capacitor config created"
+          echo "======================================"
+
+          cat capacitor.config.cjs
+
+
+      # --------------------------------------------------
+      # 9. Verify Capacitor config exists
+      # --------------------------------------------------
+      - name: Verify Capacitor config
+        run: |
+          if [ ! -f "capacitor.config.cjs" ]; then
+            echo "ERROR: capacitor.config.cjs not found."
+            exit 1
+          fi
+
+          echo "capacitor.config.cjs found successfully."
+
+
+      # --------------------------------------------------
+      # 10. Verify Capacitor CLI
+      # --------------------------------------------------
+      - name: Verify Capacitor
+        run: |
+          echo "Capacitor version:"
+          npx cap --version
+
+
+      # --------------------------------------------------
+      # 11. Build web application
+      # --------------------------------------------------
+      - name: Build web application
+        run: |
+          npm run build
+
+
+      # --------------------------------------------------
+      # 12. Verify dist folder
+      # --------------------------------------------------
+      - name: Verify web build
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "ERROR: dist folder was not created."
+            exit 1
+          fi
+
+          echo "Web build successful."
+          ls -lah dist
+
+
+      # --------------------------------------------------
+      # 13. Create Android platform
+      # --------------------------------------------------
+      - name: Create Android platform
+        shell: bash
+        run: |
+
+          if [ -d "android" ]; then
+
+            echo "Android project already exists."
+
+          else
+
+            echo "Android project not found."
+            echo "Creating Android project..."
+
+            npx cap add android
+
+          fi
+
+
+      # --------------------------------------------------
+      # 14. Capacitor sync
+      # --------------------------------------------------
+      - name: Capacitor sync
+        run: |
+          npx cap sync android
+
+
+      # --------------------------------------------------
+      # 15. Verify Android project
+      # --------------------------------------------------
+      - name: Verify Android project
+        shell: bash
+        run: |
+
+          if [ ! -d "android" ]; then
+            echo "ERROR: android folder was not created."
+            exit 1
+          fi
+
+          if [ ! -f "android/gradlew" ]; then
+            echo "ERROR: Gradle wrapper not found."
+            exit 1
+          fi
+
+          if [ ! -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
+            echo "ERROR: gradle-wrapper.properties not found."
+            exit 1
+          fi
+
+          if [ ! -d "android/app" ]; then
+            echo "ERROR: Android app module not found."
+            exit 1
+          fi
+
+          echo "======================================"
+          echo "Android project verified successfully"
+          echo "======================================"
+
+
+      # --------------------------------------------------
+      # 16. Make Gradle executable
+      # --------------------------------------------------
+      - name: Make Gradle executable
+        working-directory: android
+        run: |
+          chmod +x gradlew
+
+
+      # --------------------------------------------------
+      # 17. Setup Gradle
+      # --------------------------------------------------
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+
+      # --------------------------------------------------
+      # 18. Build Debug APK
+      # --------------------------------------------------
+      - name: Build Debug APK
+        working-directory: android
+        run: |
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --stacktrace
+
+
+      # --------------------------------------------------
+      # 19. Verify APK
+      # --------------------------------------------------
+      - name: Verify APK
+        shell: bash
+        run: |
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+
+            echo "======================================"
+            echo "ERROR: APK was not generated."
+            echo "======================================"
+
+            echo "Searching for APK files..."
+
+            find android -type f -name "*.apk" -print
+
+            exit 1
+
+          fi
+
+          echo "======================================"
+          echo "APK BUILD SUCCESSFUL"
+          echo "======================================"
+
+          ls -lh "$APK"
+
+
+      # --------------------------------------------------
+      # 20. Upload APK
+      # --------------------------------------------------
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sri-Murugan-Foods-POS-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+
+      # --------------------------------------------------
+      # 21. Build summary
+      # --------------------------------------------------
+      - name: Build summary
+        run: |
+          echo ""
+          echo "=============================================="
+          echo " Sri Murugan Foods POS Android Build"
+          echo "=============================================="
+          echo ""
+          echo "Application : Sri Murugan Foods POS"
+          echo "Package     : com.srimuruganfoods.pos"
+          echo "Build       : Debug APK"
+          echo ""
+          echo "APK:"
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+          echo ""
+          echo "=============================================="
+          echo " BUILD COMPLETED SUCCESSFULLY"
+          echo "=============================================="
