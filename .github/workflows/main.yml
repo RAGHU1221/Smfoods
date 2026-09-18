@@ -27,7 +27,7 @@ jobs:
 
 
       # ==========================================
-      # 2. Node.js
+      # 2. Setup Node.js 24
       # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -37,17 +37,17 @@ jobs:
 
 
       # ==========================================
-      # 3. Java 17
+      # 3. Setup Java 21
       # ==========================================
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
 
       # ==========================================
-      # 4. Environment
+      # 4. Check Environment
       # ==========================================
       - name: Check environment
         run: |
@@ -55,9 +55,17 @@ jobs:
           echo "Environment"
           echo "======================================"
 
+          echo "Node:"
           node --version
+
+          echo "NPM:"
           npm --version
+
+          echo "Java:"
           java -version
+
+          echo "JAVA_HOME:"
+          echo "$JAVA_HOME"
 
 
       # ==========================================
@@ -114,7 +122,7 @@ jobs:
           EOF
 
           echo "======================================"
-          echo "Capacitor config created"
+          echo "Capacitor config"
           echo "======================================"
 
           cat capacitor.config.json
@@ -131,22 +139,19 @@ jobs:
             exit 1
           fi
 
-          echo ""
-          echo "Checking appId..."
-
-          grep -q '"appId": "com.srimuruganfoods.pos"' capacitor.config.json
+          grep -q '"appId": "com.srimuruganfoods.pos"' \
+            capacitor.config.json
 
           if [ $? -ne 0 ]; then
             echo "ERROR: appId is missing."
             exit 1
           fi
 
-          echo "appId verified:"
-          echo "com.srimuruganfoods.pos"
+          echo "appId verified successfully."
 
 
       # ==========================================
-      # 10. Verify Capacitor CLI
+      # 10. Verify Capacitor
       # ==========================================
       - name: Verify Capacitor
         run: |
@@ -159,7 +164,7 @@ jobs:
 
 
       # ==========================================
-      # 11. Build web app
+      # 11. Build Web Application
       # ==========================================
       - name: Build web application
         run: |
@@ -182,15 +187,13 @@ jobs:
             exit 1
           fi
 
-          echo "======================================"
-          echo "Web build successful"
-          echo "======================================"
+          echo "Web build successful."
 
           ls -lah dist
 
 
       # ==========================================
-      # 13. Create Android
+      # 13. Create Android platform
       # ==========================================
       - name: Create Android platform
         shell: bash
@@ -213,9 +216,9 @@ jobs:
 
 
       # ==========================================
-      # 14. Verify Android
+      # 14. Verify Android project
       # ==========================================
-      - name: Verify Android platform
+      - name: Verify Android project
         shell: bash
         run: |
 
@@ -240,7 +243,7 @@ jobs:
 
 
       # ==========================================
-      # 15. Capacitor sync
+      # 15. Capacitor Sync
       # ==========================================
       - name: Capacitor sync
         run: |
@@ -268,11 +271,33 @@ jobs:
 
           chmod +x gradlew
 
-          echo "Gradle executable permission added."
+          echo "Gradle executable."
 
 
       # ==========================================
-      # 18. Build Debug APK
+      # 18. Verify Java inside Gradle
+      # ==========================================
+      - name: Verify Java for Android build
+        working-directory: android
+        run: |
+
+          echo "======================================"
+          echo "Java used by Gradle"
+          echo "======================================"
+
+          java -version
+
+          echo ""
+          echo "JAVA_HOME:"
+          echo "$JAVA_HOME"
+
+          echo ""
+          echo "Gradle version:"
+          ./gradlew --version
+
+
+      # ==========================================
+      # 19. Build Debug APK
       # ==========================================
       - name: Build Debug APK
         working-directory: android
@@ -288,7 +313,7 @@ jobs:
 
 
       # ==========================================
-      # 19. Find APK
+      # 20. Verify APK
       # ==========================================
       - name: Verify APK
         shell: bash
@@ -314,14 +339,16 @@ jobs:
           fi
 
           echo ""
+          echo "======================================"
           echo "APK BUILD SUCCESSFUL"
+          echo "======================================"
           echo ""
 
           ls -lh "$APK"
 
 
       # ==========================================
-      # 20. Upload APK
+      # 21. Upload APK
       # ==========================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -332,7 +359,7 @@ jobs:
 
 
       # ==========================================
-      # 21. Final summary
+      # 22. Final Summary
       # ==========================================
       - name: Build summary
         run: |
@@ -345,9 +372,11 @@ jobs:
           echo ""
           echo "App Name : Sri Murugan Foods POS"
           echo "App ID   : com.srimuruganfoods.pos"
+          echo "Node     : 24"
+          echo "Java     : 21"
           echo "Build    : Debug APK"
           echo ""
-          echo "APK Location:"
+          echo "APK:"
           echo "android/app/build/outputs/apk/debug/app-debug.apk"
           echo ""
           echo "=============================================="
