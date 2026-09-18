@@ -19,16 +19,16 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------
-      # 1. Checkout source code
-      # --------------------------------------------------
+      # ==========================================
+      # 1. Checkout
+      # ==========================================
       - name: Checkout source
         uses: actions/checkout@v4
 
 
-      # --------------------------------------------------
-      # 2. Setup Node.js
-      # --------------------------------------------------
+      # ==========================================
+      # 2. Node.js
+      # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
@@ -36,9 +36,9 @@ jobs:
           cache: npm
 
 
-      # --------------------------------------------------
-      # 3. Setup Java
-      # --------------------------------------------------
+      # ==========================================
+      # 3. Java 17
+      # ==========================================
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -46,32 +46,31 @@ jobs:
           java-version: '17'
 
 
-      # --------------------------------------------------
-      # 4. Check environment
-      # --------------------------------------------------
+      # ==========================================
+      # 4. Environment
+      # ==========================================
       - name: Check environment
         run: |
-          echo "Node:"
+          echo "======================================"
+          echo "Environment"
+          echo "======================================"
+
           node --version
-
-          echo "NPM:"
           npm --version
-
-          echo "Java:"
           java -version
 
 
-      # --------------------------------------------------
-      # 5. Install project dependencies
-      # --------------------------------------------------
+      # ==========================================
+      # 5. Install dependencies
+      # ==========================================
       - name: Install dependencies
         run: |
           npm install --no-audit --no-fund
 
 
-      # --------------------------------------------------
-      # 6. Install Capacitor packages
-      # --------------------------------------------------
+      # ==========================================
+      # 6. Install Capacitor
+      # ==========================================
       - name: Install Capacitor
         run: |
           npm install \
@@ -83,90 +82,116 @@ jobs:
             --no-fund
 
 
-      # --------------------------------------------------
-      # 7. Remove incompatible Capacitor config files
-      # --------------------------------------------------
-      - name: Remove old Capacitor config
+      # ==========================================
+      # 7. Remove old Capacitor configs
+      # ==========================================
+      - name: Remove old Capacitor configs
         run: |
           rm -f capacitor.config.ts
           rm -f capacitor.config.js
+          rm -f capacitor.config.cjs
+          rm -f capacitor.config.json
 
           echo "Old Capacitor config files removed."
 
 
-      # --------------------------------------------------
-      # 8. Create CommonJS Capacitor config
-      # --------------------------------------------------
+      # ==========================================
+      # 8. Create Capacitor JSON config
+      # ==========================================
       - name: Create Capacitor config
         run: |
-          cat > capacitor.config.cjs <<'EOF'
-          const config = {
-            appId: 'com.srimuruganfoods.pos',
-            appName: 'Sri Murugan Foods POS',
-            webDir: 'dist',
-            bundledWebRuntime: false,
-            android: {
-              backgroundColor: '#b91c1c'
-            }
-          };
 
-          module.exports = config;
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.srimuruganfoods.pos",
+            "appName": "Sri Murugan Foods POS",
+            "webDir": "dist",
+            "bundledWebRuntime": false,
+            "android": {
+              "backgroundColor": "#b91c1c"
+            }
+          }
           EOF
 
           echo "======================================"
           echo "Capacitor config created"
           echo "======================================"
 
-          cat capacitor.config.cjs
+          cat capacitor.config.json
 
 
-      # --------------------------------------------------
-      # 9. Verify Capacitor config exists
-      # --------------------------------------------------
+      # ==========================================
+      # 9. Verify appId
+      # ==========================================
       - name: Verify Capacitor config
         run: |
-          if [ ! -f "capacitor.config.cjs" ]; then
-            echo "ERROR: capacitor.config.cjs not found."
+
+          if [ ! -f "capacitor.config.json" ]; then
+            echo "ERROR: capacitor.config.json not found."
             exit 1
           fi
 
-          echo "capacitor.config.cjs found successfully."
+          echo ""
+          echo "Checking appId..."
+
+          grep -q '"appId": "com.srimuruganfoods.pos"' capacitor.config.json
+
+          if [ $? -ne 0 ]; then
+            echo "ERROR: appId is missing."
+            exit 1
+          fi
+
+          echo "appId verified:"
+          echo "com.srimuruganfoods.pos"
 
 
-      # --------------------------------------------------
+      # ==========================================
       # 10. Verify Capacitor CLI
-      # --------------------------------------------------
+      # ==========================================
       - name: Verify Capacitor
         run: |
-          echo "Capacitor version:"
+
+          echo "======================================"
+          echo "Capacitor version"
+          echo "======================================"
+
           npx cap --version
 
 
-      # --------------------------------------------------
-      # 11. Build web application
-      # --------------------------------------------------
+      # ==========================================
+      # 11. Build web app
+      # ==========================================
       - name: Build web application
         run: |
+
+          echo "======================================"
+          echo "Building web application"
+          echo "======================================"
+
           npm run build
 
 
-      # --------------------------------------------------
-      # 12. Verify dist folder
-      # --------------------------------------------------
+      # ==========================================
+      # 12. Verify dist
+      # ==========================================
       - name: Verify web build
         run: |
+
           if [ ! -d "dist" ]; then
             echo "ERROR: dist folder was not created."
             exit 1
           fi
 
-          echo "Web build successful."
+          echo "======================================"
+          echo "Web build successful"
+          echo "======================================"
+
           ls -lah dist
 
 
-      # --------------------------------------------------
-      # 13. Create Android platform
-      # --------------------------------------------------
+      # ==========================================
+      # 13. Create Android
+      # ==========================================
       - name: Create Android platform
         shell: bash
         run: |
@@ -177,41 +202,30 @@ jobs:
 
           else
 
+            echo "======================================"
             echo "Android project not found."
             echo "Creating Android project..."
+            echo "======================================"
 
             npx cap add android
 
           fi
 
 
-      # --------------------------------------------------
-      # 14. Capacitor sync
-      # --------------------------------------------------
-      - name: Capacitor sync
-        run: |
-          npx cap sync android
-
-
-      # --------------------------------------------------
-      # 15. Verify Android project
-      # --------------------------------------------------
-      - name: Verify Android project
+      # ==========================================
+      # 14. Verify Android
+      # ==========================================
+      - name: Verify Android platform
         shell: bash
         run: |
 
           if [ ! -d "android" ]; then
-            echo "ERROR: android folder was not created."
+            echo "ERROR: Android folder was not created."
             exit 1
           fi
 
           if [ ! -f "android/gradlew" ]; then
             echo "ERROR: Gradle wrapper not found."
-            exit 1
-          fi
-
-          if [ ! -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
-            echo "ERROR: gradle-wrapper.properties not found."
             exit 1
           fi
 
@@ -221,52 +235,76 @@ jobs:
           fi
 
           echo "======================================"
-          echo "Android project verified successfully"
+          echo "Android project verified"
           echo "======================================"
 
 
-      # --------------------------------------------------
-      # 16. Make Gradle executable
-      # --------------------------------------------------
-      - name: Make Gradle executable
-        working-directory: android
+      # ==========================================
+      # 15. Capacitor sync
+      # ==========================================
+      - name: Capacitor sync
         run: |
-          chmod +x gradlew
+
+          echo "======================================"
+          echo "Capacitor Sync"
+          echo "======================================"
+
+          npx cap sync android
 
 
-      # --------------------------------------------------
-      # 17. Setup Gradle
-      # --------------------------------------------------
+      # ==========================================
+      # 16. Setup Gradle
+      # ==========================================
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
 
-      # --------------------------------------------------
+      # ==========================================
+      # 17. Make Gradle executable
+      # ==========================================
+      - name: Make Gradle executable
+        working-directory: android
+        run: |
+
+          chmod +x gradlew
+
+          echo "Gradle executable permission added."
+
+
+      # ==========================================
       # 18. Build Debug APK
-      # --------------------------------------------------
+      # ==========================================
       - name: Build Debug APK
         working-directory: android
         run: |
+
+          echo "======================================"
+          echo "Building Android APK"
+          echo "======================================"
+
           ./gradlew assembleDebug \
             --no-daemon \
             --stacktrace
 
 
-      # --------------------------------------------------
-      # 19. Verify APK
-      # --------------------------------------------------
+      # ==========================================
+      # 19. Find APK
+      # ==========================================
       - name: Verify APK
         shell: bash
         run: |
 
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
+          echo "======================================"
+          echo "Checking APK"
+          echo "======================================"
+
           if [ ! -f "$APK" ]; then
 
-            echo "======================================"
             echo "ERROR: APK was not generated."
-            echo "======================================"
 
+            echo ""
             echo "Searching for APK files..."
 
             find android -type f -name "*.apk" -print
@@ -275,16 +313,16 @@ jobs:
 
           fi
 
-          echo "======================================"
+          echo ""
           echo "APK BUILD SUCCESSFUL"
-          echo "======================================"
+          echo ""
 
           ls -lh "$APK"
 
 
-      # --------------------------------------------------
+      # ==========================================
       # 20. Upload APK
-      # --------------------------------------------------
+      # ==========================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -293,22 +331,24 @@ jobs:
           if-no-files-found: error
 
 
-      # --------------------------------------------------
-      # 21. Build summary
-      # --------------------------------------------------
+      # ==========================================
+      # 21. Final summary
+      # ==========================================
       - name: Build summary
         run: |
+
           echo ""
           echo "=============================================="
-          echo " Sri Murugan Foods POS Android Build"
+          echo " Sri Murugan Foods POS"
+          echo " Android APK Build"
           echo "=============================================="
           echo ""
-          echo "Application : Sri Murugan Foods POS"
-          echo "Package     : com.srimuruganfoods.pos"
-          echo "Build       : Debug APK"
+          echo "App Name : Sri Murugan Foods POS"
+          echo "App ID   : com.srimuruganfoods.pos"
+          echo "Build    : Debug APK"
           echo ""
-          echo "APK:"
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+          echo "APK Location:"
+          echo "android/app/build/outputs/apk/debug/app-debug.apk"
           echo ""
           echo "=============================================="
           echo " BUILD COMPLETED SUCCESSFULLY"
